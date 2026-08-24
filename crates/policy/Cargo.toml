@@ -1,0 +1,10 @@
+[package]
+name = "airlock-policy"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+airlock-core = { path = "../core" }
+chrono.workspace = true
+thiserror.workspace = true

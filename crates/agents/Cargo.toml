@@ -1,0 +1,8 @@
+[package]
+name = "airlock-agents"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+airlock-core = { path = "../core" }

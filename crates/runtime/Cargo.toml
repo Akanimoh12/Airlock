@@ -1,0 +1,15 @@
+[package]
+name = "airlock-runtime"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+airlock-core = { path = "../core" }
+airlock-policy = { path = "../policy" }
+tokio.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

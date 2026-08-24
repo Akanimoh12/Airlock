@@ -1,0 +1,11 @@
+[package]
+name = "airlock-api"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+airlock-core = { path = "../core" }
+airlock-policy = { path = "../policy" }
+airlock-runtime = { path = "../runtime" }
+airlock-agents = { path = "../agents" }
