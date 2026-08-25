@@ -1,0 +1,92 @@
+[
+  {
+    "name": "fake-telco-suspension",
+    "expect": "Hold",
+    "message": "MTN Alert: your account will be suspended today. Call 08031234567 to reactivate.",
+    "minutes_later": 4,
+    "amount_minor": 500000,
+    "currency": "NGN",
+    "recipient": "08031234567"
+  },
+  {
+    "name": "fake-telco-sim-revalidation",
+    "expect": "Hold",
+    "message": "Airtel: Your SIM will be deactivated within 24 hours. Call 08122334455 now to revalidate your line.",
+    "minutes_later": 2,
+    "amount_minor": 300000,
+    "currency": "NGN",
+    "recipient": "08122334455"
+  },
+  {
+    "name": "wrong-transfer-refund",
+    "expect": "Hold",
+    "message": "Hello, I mistakenly sent N15,000 to your account. Please send it back urgently to 08144556677.",
+    "minutes_later": 6,
+    "amount_minor": 1500000,
+    "currency": "NGN",
+    "recipient": "08144556677"
+  },
+  {
+    "name": "prize-release-fee",
+    "expect": "Hold",
+    "message": "Congratulations! You won N500,000 in the Glo promo. Pay N5,000 processing fee today to claim your prize.",
+    "minutes_later": 3,
+    "amount_minor": 500000,
+    "currency": "NGN",
+    "recipient": "08133445566"
+  },
+  {
+    "name": "fake-loan-officer",
+    "expect": "Hold",
+    "message": "Your loan of N200,000 has been approved. Transfer the N10,000 insurance fee immediately to 08155667788 to receive it.",
+    "minutes_later": 5,
+    "amount_minor": 1000000,
+    "currency": "NGN",
+    "recipient": "08155667788"
+  },
+  {
+    "name": "fake-bank-safe-account",
+    "expect": "Hold",
+    "message": "Access Bank: suspicious login detected on your account. Transfer your balance to the safe account 08166778899 immediately.",
+    "minutes_later": 1,
+    "amount_minor": 8000000,
+    "currency": "NGN",
+    "recipient": "08166778899"
+  },
+  {
+    "name": "fake-nin-linkage-fee",
+    "expect": "Hold",
+    "message": "NIMC: Your NIN is not linked to this line. Pay N2,000 today to avoid your line being blocked.",
+    "minutes_later": 8,
+    "amount_minor": 200000,
+    "currency": "NGN",
+    "recipient": "08188990011"
+  },
+  {
+    "name": "utility-disconnection",
+    "expect": "Hold",
+    "message": "Final notice: your meter will be disconnected today. Pay N8,500 now to 08177889900 to avoid reconnection charges.",
+    "minutes_later": 7,
+    "amount_minor": 850000,
+    "currency": "NGN",
+    "recipient": "08177889900"
+  },
+  {
+    "name": "mpesa-agent-reversal",
+    "expect": "Hold",
+    "message": "Safaricom: A wrong M-Pesa deposit was made to your line. Send Ksh 4,500 back immediately to 0712345678 or your line will be blocked.",
+    "minutes_later": 3,
+    "amount_minor": 450000,
+    "currency": "KES",
+    "recipient": "0712345678"
+  },
+  {
+    "name": "fake-employer-gift-card",
+    "expect": "Hold",
+    "message": "This is your MD. I am in a meeting and cannot talk. Urgently transfer N50,000 to 08199001122 and I will refund you today.",
+    "minutes_later": 2,
+    "amount_minor": 5000000,
+    "currency": "NGN",
+    "recipient": "08199001122"
+  }
+]

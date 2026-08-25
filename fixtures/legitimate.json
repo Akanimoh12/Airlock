@@ -1,0 +1,95 @@
+[
+  {
+    "name": "monthly-rent-to-landlord",
+    "expect": "Pass",
+    "message": "Good morning, just a note that rent is due this week.",
+    "minutes_later": 5,
+    "amount_minor": 25000000,
+    "currency": "NGN",
+    "recipient": "08055512345",
+    "established": true
+  },
+  {
+    "name": "airtime-topup",
+    "expect": "Pass",
+    "message": "Your data bundle is running low.",
+    "minutes_later": 2,
+    "amount_minor": 100000,
+    "currency": "NGN",
+    "recipient": "08099987654",
+    "established": true
+  },
+  {
+    "name": "sister-usual-monthly",
+    "expect": "Pass",
+    "message": "Hi, hope you are well. Talk later.",
+    "minutes_later": 9,
+    "amount_minor": 3000000,
+    "currency": "NGN",
+    "recipient": "08033344556",
+    "established": true
+  },
+  {
+    "name": "lunch-plan-then-unrelated-transfer",
+    "expect": "Pass",
+    "message": "Hey, are we still on for lunch tomorrow?",
+    "minutes_later": 3,
+    "amount_minor": 500000,
+    "currency": "NGN",
+    "recipient": "08211223344"
+  },
+  {
+    "name": "friend-shares-new-number",
+    "expect": "Pass",
+    "message": "Thanks for lunch! My number is 08111222333 whenever you get a chance.",
+    "minutes_later": 6,
+    "amount_minor": 400000,
+    "currency": "NGN",
+    "recipient": "08111222333"
+  },
+  {
+    "name": "group-gift-reminder",
+    "expect": "Pass",
+    "message": "Reminder: contributions for the group gift close on Friday.",
+    "minutes_later": 8,
+    "amount_minor": 200000,
+    "currency": "NGN",
+    "recipient": "08222334455"
+  },
+  {
+    "name": "parcel-delivery-notice",
+    "expect": "Pass",
+    "message": "Your parcel arrives within 24 hours. Track it on our website.",
+    "minutes_later": 4,
+    "amount_minor": 150000,
+    "currency": "NGN",
+    "recipient": "08233445566"
+  },
+  {
+    "name": "new-vendor-invoice",
+    "expect": "Pass",
+    "message": "Invoice attached for the office supplies, N45,000 due end of month.",
+    "minutes_later": 7,
+    "amount_minor": 4500000,
+    "currency": "NGN",
+    "recipient": "08244556677"
+  },
+  {
+    "name": "family-emergency-new-number",
+    "expect": "Pass",
+    "message": "Mum is in hospital, please send N20,000 to my new number 08199887766 urgently.",
+    "minutes_later": 3,
+    "amount_minor": 2000000,
+    "currency": "NGN",
+    "recipient": "08199887766"
+  },
+  {
+    "name": "colleague-asks-for-contribution",
+    "expect": "Pass",
+    "message": "Kindly send N5,000 for the group contribution when you can.",
+    "minutes_later": 5,
+    "amount_minor": 500000,
+    "currency": "NGN",
+    "recipient": "08255667788"
+  }
+]
