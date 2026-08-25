@@ -57,6 +57,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "airlock-evals"
+version = "0.1.0"
+dependencies = [
+ "airlock-agents",
+ "airlock-core",
+ "airlock-policy",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "airlock-policy"
 version = "0.1.0"
 dependencies = [

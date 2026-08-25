@@ -1,0 +1,17 @@
+[package]
+name = "airlock-evals"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+airlock-core = { path = "../crates/core" }
+airlock-policy = { path = "../crates/policy" }
+airlock-agents = { path = "../crates/agents" }
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
