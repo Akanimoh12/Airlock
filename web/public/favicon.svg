@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none">
+  <!--
+    The wordmark's aperture, adapted for 16px.
+
+    The header mark (src/lib/dom.ts, icons.airlock) strokes both circles at
+    1.6. At favicon size that inner ring encloses roughly one pixel and mushes
+    into a blob, so the centre is filled and the outer stroke thickened. Same
+    mark, drawn to survive the size — keep the two in step if either changes.
+
+    A single mid-luminance violet reads on both light and dark tab strips, so
+    no prefers-color-scheme switch is needed.
+  -->
+  <circle cx="10" cy="10" r="8.1" stroke="#7c3aed" stroke-width="2.2" />
+  <circle cx="10" cy="10" r="3" fill="#7c3aed" />
+</svg>
