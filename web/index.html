@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Airlock</title>
+    <meta
+      name="description"
+      content="Your bank checks that it's really you. Airlock checks whether it was really your idea."
+    />
+    <script>
+      // Stamp the saved theme before first paint so a dark viewer never sees a
+      // white flash.
+      try {
+        var t = localStorage.getItem("airlock-theme");
+        if (t === "light" || t === "dark")
+          document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
