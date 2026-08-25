@@ -39,6 +39,21 @@ impl<T> Untrusted<T> {
     pub fn validate<U, E>(self, validator: impl FnOnce(T) -> Result<U, E>) -> Result<Validated<U>, E> {
         validator(self.0).map(Validated)
     }
+
+    /// Borrow the raw payload for the Reader hop.
+    ///
+    /// The Reader is the one component permitted to see attacker-controlled
+    /// text, and it is the component that can do the least with it: no
+    /// account access, no funds, no path to the policy engine. Its output
+    /// re-enters the system as `Untrusted<ReaderOutput>` and must pass
+    /// `validate` before anything downstream will look at it.
+    ///
+    /// Named the long way on purpose. A call site that reads
+    /// `expose_to_reader` is auditable; a call site that reads `.get()`
+    /// would not be. There is deliberately no owned-value equivalent.
+    pub fn expose_to_reader(&self) -> &T {
+        &self.0
+    }
 }
 
 /// Schema-checked, provenance-tagged data. This is what is allowed to reach

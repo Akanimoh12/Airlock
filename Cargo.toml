@@ -6,6 +6,8 @@ members = [
     "crates/agents",
     "crates/runtime",
     "crates/api",
+    "crates/reader",
+    "evals",
 ]
 
 [workspace.package]
@@ -15,7 +17,13 @@ license = "MIT"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+axum = "0.8"
+tower-http = { version = "0.6", features = ["cors"] }
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+futures = "0.3"
