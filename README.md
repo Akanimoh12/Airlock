@@ -159,9 +159,24 @@ Rig implements the agent layer only. Policy, state and reliability logic are pla
 
 ```bash
 git clone <repo> && cd airlock
-cp .env.example .env         # add your model API key
 cargo run -p airlock-api     # backend on :8080
 ```
+
+That is the whole backend, and it needs no API key and no network — the
+default Reader is a deterministic offline one. The full flow runs, including
+holds and releases.
+
+To run the Reader as its own process, which is what the fail-closed demo
+needs:
+
+```bash
+cargo run -p airlock-reader                                  # :8081, own PID
+READER_URL=http://127.0.0.1:8081 cargo run -p airlock-api    # :8080
+```
+
+Now `kill` the Reader and attempt a transfer to a first-time recipient. It
+holds, because a refused socket is a real screening failure — see
+[Fail-closed by design](#transaction-lifecycle).
 
 Then open the demo UI:
 
@@ -182,7 +197,8 @@ airlock/
 ├── crates/
 │   ├── core/        types, trust lattice, transaction state machine
 │   ├── policy/      deterministic rules — no model calls, fully tested
-│   ├── agents/      Reader and Linker (Rig)
+│   ├── agents/      Reader and Linker, schema validation, trust projection
+│   ├── reader/      the Reader as its own process — the one killed on stage
 │   ├── runtime/     orchestration, supervision, hold timers
 │   └── api/         Axum HTTP + SSE
 ├── web/             demo UI
