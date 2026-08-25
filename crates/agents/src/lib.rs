@@ -1,8 +1,13 @@
-//! Reader and Linker agents (Rig). Owned by Track B.
+//! Reader and Linker agents. Owned by Track B.
 //!
-//! `crates/core` and `crates/policy` freeze the contracts this crate must
-//! produce (`PressureSignal`, `Responsiveness`). See docs/team_brief.md.
+//! Raw message text stops at the Reader, and what the Reader emits is not
+//! trusted either: `PressureSignal` carries free-text fields, and a Reader
+//! that has been talked into cooperating can put anything in them. Every
+//! signal passes through [`validate`] before anything downstream looks at
+//! it.
 
-// TODO(B): Reader agent — untrusted text in, PressureSignal out.
-// TODO(B): Linker agent — typed signal + account facts in, Responsiveness out.
-// TODO(B): stub mode (offline, no API key) ships first.
+pub mod validate;
+
+pub use validate::{
+    mask_msisdn, validate_reader_json, validate_reader_output, SanitisationReport, SchemaError,
+};
