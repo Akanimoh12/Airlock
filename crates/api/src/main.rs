@@ -12,6 +12,7 @@
 
 use airlock_agents::Reader;
 use airlock_api::{router, AppState};
+use std::net::{IpAddr, Ipv4Addr};
 use std::time::Duration;
 
 #[tokio::main]
@@ -39,13 +40,25 @@ async fn main() {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080);
 
+    // Loopback locally, all interfaces in a container.
+    //
+    // Binding `0.0.0.0` unconditionally would quietly expose the demo wallet
+    // to anyone on the venue wifi, which is not a thing to discover on stage.
+    // A platform that routes traffic to us sets `BIND_ALL`; nothing else
+    // does.
+    let host: IpAddr = if std::env::var("BIND_ALL").is_ok_and(|v| !v.trim().is_empty()) {
+        Ipv4Addr::UNSPECIFIED.into()
+    } else {
+        Ipv4Addr::LOCALHOST.into()
+    };
+
     let state = AppState::new(reader);
-    let listener = tokio::net::TcpListener::bind(("127.0.0.1", port))
+    let listener = tokio::net::TcpListener::bind((host, port))
         .await
         .expect("api could not bind");
 
-    tracing::info!(port, "airlock-api listening");
-    println!("airlock-api listening on :{port}");
+    tracing::info!(%host, port, "airlock-api listening");
+    println!("airlock-api listening on {host}:{port}");
 
     axum::serve(listener, router(state))
         .await
