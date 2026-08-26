@@ -9,7 +9,7 @@
  * computed server-side and enforced again on the release call.
  */
 
-import { api } from "./api";
+import { api, apiUrl } from "./api";
 import type { AirlockEvent, Component, HealthView, TxnView } from "./wire";
 
 export type Connection = "connecting" | "live" | "down";
@@ -73,7 +73,7 @@ class Store {
 
   private connect() {
     this.source?.close();
-    const source = new EventSource("/events");
+    const source = new EventSource(apiUrl("/events"));
     this.source = source;
 
     source.onopen = () => {

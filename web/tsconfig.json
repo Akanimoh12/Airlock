@@ -10,7 +10,9 @@
     "noFallthroughCasesInSwitch": true,
     "noEmit": true,
     "isolatedModules": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    // Gives `import.meta.env` its type. `VITE_API_BASE` is read in api.ts.
+    "types": ["vite/client"]
   },
   "include": ["src"]
 }
