@@ -613,9 +613,81 @@ textarea:focus {
 
 .hold-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+/* The two plain facts behind the hold. No rule numbers, no jargon. */
+.facts {
+  margin: 16px 0 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.facts li {
+  position: relative;
+  padding-left: 20px;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.facts li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--hold);
+}
+
+/*
+ * The counter-authority block: the single most useful thing on the screen.
+ * Given visual weight on purpose — it is what the caller does not want read,
+ * and the only reason the sixty seconds is worth anything.
+ */
+.counter {
+  margin-top: 18px;
+  padding: 14px 16px;
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--hold-line);
+}
+
+.counter-denial {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.counter-verify {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* "11 of your last 12 payments went straight through." */
+.passthrough {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.passthrough:empty {
+  display: none;
+}
+.passthrough strong {
+  color: var(--good);
+  font-weight: 700;
 }
 
 .hold-title {

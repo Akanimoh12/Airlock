@@ -5,6 +5,7 @@
  * behind the disclosure at the bottom, for the one person who asks.
  */
 
+import { counterAuthority } from "../lib/authority";
 import { esc, icons, on } from "../lib/dom";
 import { formatClock, formatMoney, formatTime, secondsUntil } from "../lib/format";
 import { REASON_COPY, stateLabel, stateTone } from "../lib/reasons";
@@ -12,6 +13,9 @@ import { store } from "../lib/store";
 import type { TxnView } from "../lib/wire";
 
 const HOLD_SECONDS = 60; // airlock_policy::HOLD_DURATION, for the meter only.
+
+/** How many recent payments the "went straight through" line looks back over. */
+const PASSTHROUGH_WINDOW = 12;
 
 const PRESETS = [
   { label: "Landlord", msisdn: "08055512345", note: "paid monthly" },
@@ -26,11 +30,12 @@ export function renderWallet(root: HTMLElement): () => void {
         <div class="phone-head">
           <div>
             <div class="tiny muted">Available balance</div>
-            <div class="balance mono">₦48,200.00</div>
+            <div class="balance mono">₦180,000.00</div>
           </div>
           <span class="badge" id="w-inbox">inbox 0</span>
         </div>
         <div class="phone-body">
+          <div class="passthrough" id="w-passthrough"></div>
           <div id="w-active"></div>
 
           <div class="stack" id="w-form">
@@ -49,7 +54,7 @@ export function renderWallet(root: HTMLElement): () => void {
             </div>
             <div class="field">
               <label for="w-amt">Amount (₦)</label>
-              <input id="w-amt" class="mono" inputmode="decimal" value="5000" />
+              <input id="w-amt" class="mono" inputmode="decimal" value="150000" />
             </div>
             <button class="btn primary block" id="w-send">Send money</button>
             <div id="w-err"></div>
@@ -99,8 +104,22 @@ export function renderWallet(root: HTMLElement): () => void {
     }
   });
 
+  const passthrough = root.querySelector("#w-passthrough")!;
+
   const unsubscribe = store.subscribe((s) => {
     inbox.textContent = `inbox ${s.health?.inbox_messages ?? 0}`;
+
+    // The precision claim, computed from real records rather than asserted.
+    // A payment "went straight through" if it was never held — which in a
+    // record means it executed with no reason attached. Do two holds on
+    // stage and this number moves.
+    const recent = s.txns.slice(0, PASSTHROUGH_WINDOW);
+    const clean = recent.filter(
+      (t) => t.state === "Executed" && t.reason === null,
+    ).length;
+    passthrough.innerHTML = recent.length
+      ? `<strong>${clean}</strong> of your last ${recent.length} payments went straight through.`
+      : "";
 
     const held = s.txns.find((t) => t.state === "Held");
     const latest = held ?? s.txns[0];
@@ -151,16 +170,27 @@ export function renderWallet(root: HTMLElement): () => void {
   return unsubscribe;
 }
 
+/**
+ * The hold screen.
+ *
+ * The sixty seconds is the only moment in the attack when the victim is
+ * looking at something other than the scammer's script, so this screen has to
+ * do more than count down. In order: what is happening, the two plain facts
+ * behind it, the thing the caller does not want them to read, and only then
+ * the actions.
+ *
+ * Nothing here is jargon and nothing here is a rule number. `PlainReason` and
+ * `ClaimedAuthority` are switch keys; every word rendered is ours.
+ */
 function panel(t: TxnView): string {
   if (t.state !== "Held") return receipt(t);
 
-  const copy = t.reason
-    ? REASON_COPY[t.reason]
-    : REASON_COPY.NovelRecipientUnsolicitedContact;
+  const failClosed = t.reason === "ScreeningUnavailable";
+  const counter = counterAuthority(t.claimed_authority);
 
   // The countdown runs toward `releases_at` — a server timestamp. It is not a
-  // frontend timer inventing progress; and it does not decide anything. The
-  // button below is gated on `releasable`, which the server computes and
+  // frontend timer inventing progress, and it does not decide anything. The
+  // release control is gated on `releasable`, which the server computes and
   // re-checks when we call release.
   const left = t.releases_at ? secondsUntil(t.releases_at) : 0;
   const pct = Math.max(0, Math.min(100, ((HOLD_SECONDS - left) / HOLD_SECONDS) * 100));
@@ -169,37 +199,74 @@ function panel(t: TxnView): string {
     <div class="hold">
       <div class="hold-head">
         <span style="color:var(--hold)">${icons.pause}</span>
-        <span class="hold-title">${esc(copy.title)}</span>
+        <div>
+          <div class="hold-title">Held for 60 seconds</div>
+          <div class="tiny muted">Nothing has left your account.</div>
+        </div>
       </div>
 
       <div class="row"><span class="k">Sending</span>
         <span class="v mono">${esc(formatMoney(t.amount))}</span></div>
       <div class="row"><span class="k">To</span>
         <span class="v mono">${esc(t.recipient)}</span></div>
-      <div class="row"><span class="k">Paid before</span>
-        <span class="v">${t.recipient_established ? "Yes" : "Never"}</span></div>
 
-      <p class="small" style="margin:14px 0 0 0">${esc(copy.body)}</p>
-      ${copy.aside ? `<p class="small muted" style="margin:8px 0 0 0">${esc(copy.aside)}</p>` : ""}
+      <ul class="facts">${facts(t, failClosed)}</ul>
 
-      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:16px 0 8px 0">
-        <span class="small muted">${t.releasable ? "Ready" : "You can send this in"}</span>
+      <div class="counter">
+        <div class="counter-denial">${esc(counter.denial)}</div>
+        <div class="counter-verify">${esc(counter.verify)}</div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin:18px 0 8px 0">
+        <span class="small muted">${
+          t.releasable ? "You can send this now" : "You can send this in"
+        }</span>
         <span class="countdown" style="color:var(--hold)">${
           t.releasable ? "0:00" : esc(formatClock(left))
         }</span>
       </div>
       <div class="meter"><i style="width:${pct.toFixed(1)}%"></i></div>
 
-      <div class="stack" style="margin-top:16px">
-        <button class="btn primary block" data-release="${t.id}" ${
+      <div class="stack" style="margin-top:18px">
+        <button class="btn primary block" data-cancel="${t.id}">
+          Cancel this transfer
+        </button>
+        <button class="btn block" data-release="${t.id}" ${
           t.releasable ? "" : "disabled"
-        }>Send anyway</button>
-        <button class="btn danger block" data-cancel="${t.id}">Cancel this transfer</button>
+        }>${
+          t.releasable
+            ? "I checked — send it"
+            : `You can release this in ${esc(formatClock(left))}`
+        }</button>
       </div>
 
       ${tech(t)}
     </div>
   `;
+}
+
+/**
+ * Why this is held, as plain facts rather than rules. Only states what the
+ * server actually told us — an unknown contact gap is left out rather than
+ * guessed at.
+ */
+function facts(t: TxnView, failClosed: boolean): string {
+  const items: string[] = [];
+
+  if (!t.recipient_established) {
+    items.push("This is the first time you’re paying this number.");
+  }
+
+  if (failClosed) {
+    items.push("Our checks couldn’t finish, so we stopped rather than guessed.");
+  } else if (t.minutes_since_contact !== null) {
+    const m = t.minutes_since_contact;
+    const when =
+      m <= 0 ? "moments" : m === 1 ? "1 minute" : `${m} minutes`;
+    items.push(`It arrived ${when} after a message from an unknown sender.`);
+  }
+
+  return items.map((f) => `<li>${esc(f)}</li>`).join("");
 }
 
 function receipt(t: TxnView): string {

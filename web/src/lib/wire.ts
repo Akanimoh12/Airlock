@@ -33,6 +33,24 @@ export type PlainReason =
 /** `crates/core/src/events.rs` */
 export type Component = "Reader" | "Linker" | "PolicyEngine";
 
+/**
+ * `crates/core/src/signal.rs`. Who the message claimed to be, as a closed
+ * set. Like `PlainReason` this crosses as a variant name and is a key to
+ * switch on — the counter-advice for each variant is written by us and lives
+ * in `authority.ts`. Nothing from the message reaches the screen.
+ */
+export type ClaimedAuthority =
+  | "Mtn"
+  | "Airtel"
+  | "Glo"
+  | "NineMobile"
+  | "Safaricom"
+  | "MobileMoney"
+  | "Bank"
+  | "Government"
+  | "Unknown"
+  | "None";
+
 export interface MoneyView {
   minor_units: number;
   currency: string;
@@ -55,6 +73,10 @@ export interface TxnView {
    * believe here.
    */
   releasable: boolean;
+  /** A switch key for counter-advice, never copy to display. */
+  claimed_authority: ClaimedAuthority;
+  /** Whole minutes between the message arriving and this transfer. */
+  minutes_since_contact: number | null;
 }
 
 export interface HealthView {
