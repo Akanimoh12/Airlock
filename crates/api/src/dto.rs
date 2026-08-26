@@ -10,7 +10,7 @@
 //! moment", never `NovelRecipientUnsolicitedContact`.
 
 use crate::store::TxnRecord;
-use airlock_core::{Money, PlainReason, TransactionState, TxnId};
+use airlock_core::{ClaimedAuthority, Money, PlainReason, TransactionState, TxnId};
 
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct MoneyView {
@@ -45,6 +45,14 @@ pub struct TxnView {
     /// permitted is this field, and the server enforces it again on the
     /// release call regardless of what the client believes.
     pub releasable: bool,
+    /// Who the message claimed to be from. Crosses as a variant name, like
+    /// `reason` — a key the UI switches on to pick counter-advice it already
+    /// holds, never copy to display.
+    pub claimed_authority: ClaimedAuthority,
+    /// Whole minutes between the message arriving and this transfer being
+    /// proposed, when there was one. Lets the hold screen say "four minutes
+    /// after a message" without the UI doing clock arithmetic of its own.
+    pub minutes_since_contact: Option<i64>,
 }
 
 impl TxnView {
@@ -60,6 +68,10 @@ impl TxnView {
             reason: record.reason,
             releasable: record.state == TransactionState::Held
                 && record.releases_at.is_some_and(|t| now >= t),
+            claimed_authority: record.claimed_authority,
+            minutes_since_contact: record.contact_received_at.map(|at| {
+                (record.proposed_at - at).num_minutes().max(0)
+            }),
         }
     }
 }

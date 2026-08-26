@@ -16,7 +16,9 @@
 pub mod dto;
 pub mod store;
 
-use airlock_agents::{mask_msisdn, screen_supervised, Linker, Reader, TransferFacts};
+use airlock_agents::{
+    mask_msisdn, screen_reported, Linker, Reader, ScreeningReport, TransferFacts,
+};
 use airlock_core::{
     AirlockEvent, Component, InvalidTransition, Money, TransactionState, TxnId, Verdict,
 };
@@ -89,7 +91,9 @@ impl AppState {
         Arc::new(AppState {
             ledger: Ledger::seeded(),
             inbox: Mutex::new(Inbox::default()),
-            txns: Mutex::new(TxnStore::default()),
+            // Seeded with prior payments that went straight through, so the
+            // wallet can show how rarely anything is interrupted.
+            txns: Mutex::new(TxnStore::seeded(Utc::now())),
             events,
             reader,
             linker: Linker::Stub,
@@ -165,6 +169,8 @@ impl AppState {
                 proposed_at: now,
                 releases_at: None,
                 reason: None,
+                claimed_authority: airlock_core::ClaimedAuthority::None,
+                contact_received_at: None,
             });
             id
         };
@@ -182,7 +188,7 @@ impl AppState {
                 .map(|m| (m.text.clone(), m.received_at))
         };
 
-        let screening = match &contact {
+        let report = match &contact {
             Some((text, received_at)) => {
                 let facts = TransferFacts {
                     amount,
@@ -190,15 +196,28 @@ impl AppState {
                     recipient_established: established,
                     minutes_since_contact: u32::try_from((now - *received_at).num_minutes()).ok(),
                 };
-                screen_supervised(self.reader.clone(), self.linker, text.clone(), facts).await
+                screen_reported(self.reader.clone(), self.linker, text.clone(), facts).await
             }
             // Nothing arrived in the correlation window, so there is nothing
             // for the transfer to be responsive *to*. Screening completed;
             // it simply had no link to find. Rule 2 needs `Responsive`, so
             // this passes on novelty alone — the acknowledged limitation in
             // the README about an attacker who waits out the window.
-            None => ScreeningOutcome::Completed { verdict: Verdict::Unknown },
+            None => ScreeningReport {
+                outcome: ScreeningOutcome::Completed { verdict: Verdict::Unknown },
+                claimed_authority: airlock_core::ClaimedAuthority::None,
+            },
         };
+        let screening = report.outcome;
+
+        // Record what the message claimed to be, so the hold screen can say
+        // who was impersonated. A variant, never text.
+        {
+            let mut txns = self.txns.lock().unwrap();
+            let record = txns.get_mut(id).ok_or(ApiErr::NotFound)?;
+            record.claimed_authority = report.claimed_authority;
+            record.contact_received_at = contact.as_ref().map(|(_, at)| *at);
+        }
 
         if screening == ScreeningOutcome::Unavailable {
             // In stub mode the Linker is in-process and infallible, so every
@@ -530,13 +549,50 @@ mod tests {
     #[tokio::test]
     async fn the_snapshot_reflects_what_happened() {
         let app = app();
+        let before = app.snapshot().len();
         app.record_inbound(SCAM.into()).unwrap();
-        app.propose(transfer_to("08031234567", 500_000)).await.unwrap();
-        app.propose(transfer_to("08055512345", 100_000)).await.unwrap();
+        let first = app.propose(transfer_to("08031234567", 500_000)).await.unwrap();
+        let second = app.propose(transfer_to("08055512345", 100_000)).await.unwrap();
+
         let snapshot = app.snapshot();
-        assert_eq!(snapshot.len(), 2);
-        // Newest first.
-        assert_eq!(snapshot[0].id, TxnId(2));
+        assert_eq!(snapshot.len(), before + 2);
+        // Newest first, and the seeded history is still behind them.
+        assert_eq!(snapshot[0].id, second.id);
+        assert_eq!(snapshot[1].id, first.id);
+    }
+
+    /// The wallet's "N of your last 12 went straight through" line is
+    /// computed from this history, so it has to be there and it has to look
+    /// like payments that were never held.
+    #[tokio::test]
+    async fn the_wallet_starts_with_a_history_of_payments_that_passed() {
+        let app = app();
+        let history = app.snapshot();
+        assert_eq!(history.len(), 12);
+        assert!(history.iter().all(|t| t.state == TransactionState::Executed));
+        assert!(history.iter().all(|t| t.reason.is_none()));
+        assert!(history.iter().all(|t| t.recipient_established));
+    }
+
+    /// The hold screen names the impersonated institution, so the record has
+    /// to carry it — as a variant, never as text from the message.
+    #[tokio::test]
+    async fn a_held_transfer_records_who_the_message_claimed_to_be() {
+        let app = app();
+        app.record_inbound(SCAM.into()).unwrap();
+        let view = app.propose(transfer_to("08031234567", 500_000)).await.unwrap();
+        assert_eq!(view.state, TransactionState::Held);
+        assert_eq!(view.claimed_authority, airlock_core::ClaimedAuthority::Mtn);
+        assert_eq!(view.minutes_since_contact, Some(0));
+    }
+
+    /// Nothing arrived, so there is nobody to have been impersonated.
+    #[tokio::test]
+    async fn a_transfer_with_no_message_claims_no_authority() {
+        let app = app();
+        let view = app.propose(transfer_to("08031234567", 500_000)).await.unwrap();
+        assert_eq!(view.claimed_authority, airlock_core::ClaimedAuthority::None);
+        assert_eq!(view.minutes_since_contact, None);
     }
 
     #[tokio::test]

@@ -7,7 +7,10 @@
 //! are held here, server-side, and are masked on the way out to any agent and
 //! on the way out to the UI. Nothing downstream of this module sees one.
 
-use airlock_core::{MaskedMsisdn, Money, PlainReason, Timestamp, TransactionState, TxnId, Untrusted};
+use airlock_core::{
+    ClaimedAuthority, MaskedMsisdn, Money, PlainReason, Timestamp, TransactionState, TxnId,
+    Untrusted,
+};
 use airlock_policy::CORRELATION_WINDOW;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -115,6 +118,12 @@ pub struct TxnRecord {
     pub proposed_at: Timestamp,
     pub releases_at: Option<Timestamp>,
     pub reason: Option<PlainReason>,
+    /// Who the inbound message claimed to be, if anyone. A closed set, so it
+    /// can reach the product surface — see `ClaimedAuthority`.
+    pub claimed_authority: ClaimedAuthority,
+    /// When the correlated message arrived, if one did. The timestamp only —
+    /// never the message.
+    pub contact_received_at: Option<Timestamp>,
 }
 
 #[derive(Default)]
@@ -124,6 +133,51 @@ pub struct TxnStore {
 }
 
 impl TxnStore {
+    /// Prior payments to recipients this wallet already pays, all of which
+    /// went straight through.
+    ///
+    /// These exist so the precision claim is visible in the product rather
+    /// than only asserted on stage: most payments are not interrupted, and a
+    /// wallet with no history cannot show that. Every one is `Executed` with
+    /// no reason, which is what "was never held" looks like in a record.
+    pub fn seeded(now: Timestamp) -> Self {
+        const HISTORY: &[(&str, i64, i64)] = &[
+            // (recipient, amount in minor units, days ago)
+            ("08055512345", 6_000_000, 2),   // landlord — rent
+            ("08099987654", 200_000, 3),     // airtime
+            ("08033344556", 1_500_000, 5),   // sister
+            ("08099987654", 100_000, 7),     // airtime
+            ("08055512345", 350_000, 9),     // landlord — service charge
+            ("08033344556", 800_000, 12),    // sister
+            ("08099987654", 200_000, 14),    // airtime
+            ("08033344556", 2_000_000, 18),  // sister
+            ("08099987654", 150_000, 21),    // airtime
+            ("08055512345", 6_000_000, 32),  // landlord — rent
+            ("08033344556", 1_200_000, 38),  // sister
+            ("08099987654", 200_000, 44),    // airtime
+        ];
+
+        let mut store = TxnStore::default();
+        // Oldest first, so ids ascend with time the way live ones do.
+        for (msisdn, minor_units, days) in HISTORY.iter().rev() {
+            let id = store.next_id();
+            store.insert(TxnRecord {
+                id,
+                state: TransactionState::Executed,
+                amount: Money { minor_units: *minor_units, currency: *b"NGN" },
+                recipient: msisdn.to_string(),
+                masked: crate::mask_msisdn(msisdn).expect("seed msisdn is valid"),
+                recipient_established: true,
+                proposed_at: now - chrono::Duration::days(*days),
+                releases_at: None,
+                reason: None,
+                claimed_authority: ClaimedAuthority::None,
+                contact_received_at: None,
+            });
+        }
+        store
+    }
+
     pub fn next_id(&self) -> TxnId {
         TxnId(self.next_id.fetch_add(1, Ordering::Relaxed) + 1)
     }
