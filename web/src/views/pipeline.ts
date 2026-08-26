@@ -93,6 +93,7 @@ export function renderPipeline(root: HTMLElement): () => void {
       <span><i class="dot live"></i> completed</span>
       <span><i class="dot down"></i> failed — holds rather than passes</span>
       <span class="spacer"></span>
+      <span class="pill" id="p-reader"></span>
       <span id="p-summary" class="muted"></span>
     </div>
 
@@ -106,6 +107,7 @@ export function renderPipeline(root: HTMLElement): () => void {
 
   const log = root.querySelector("#p-log")!;
   const summary = root.querySelector("#p-summary")!;
+  const readerPill = root.querySelector<HTMLElement>("#p-reader")!;
 
   const unsubscribe = store.subscribe((s) => {
     const txn = s.txns.find((t) => t.state === "Held") ?? s.txns[0];
@@ -114,6 +116,18 @@ export function renderPipeline(root: HTMLElement): () => void {
     for (const n of NODES) {
       const el = root.querySelector(`#n-${n.id}`)!;
       el.className = `node ${states[n.id] === "idle" ? "" : states[n.id]}`.trim();
+    }
+
+    // Component status, shown where it reads as status. Beat six turns this
+    // red at the same moment the Reader node goes dark.
+    if (s.health) {
+      readerPill.hidden = false;
+      const up = s.health.reader_reachable;
+      readerPill.innerHTML =
+        `<i class="dot ${up ? "live" : "down"}"></i>` +
+        `<span>Reader ${up ? s.health.reader_mode : "offline"}</span>`;
+    } else {
+      readerPill.hidden = true;
     }
 
     const readerDown = s.health ? !s.health.reader_reachable : false;

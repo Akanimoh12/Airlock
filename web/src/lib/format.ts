@@ -1,8 +1,8 @@
 import type { MoneyView } from "./wire";
 
 /**
- * Minor units to a readable amount. NGN is kobo — `500000` is ₦5,000.00, which
- * is what `fixtures/scams.json` means by `amount_minor`.
+ * Minor units to a readable amount. NGN is kobo — `15000000` is ₦150,000.00,
+ * which is what `amount_minor` means on the wire and in `fixtures/`.
  */
 const SYMBOLS: Record<string, string> = { NGN: "₦", KES: "KSh", USD: "$" };
 

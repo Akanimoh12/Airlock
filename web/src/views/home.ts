@@ -30,7 +30,7 @@ const DIAGRAM = `
   <text x="4" y="11" class="dg-label">Outside &middot; untrusted</text>
   <rect x="4" y="22" width="392" height="78" rx="13" class="dg-card" />
   <text x="24" y="52" class="dg-msg">&ldquo;Your account will be suspended.</text>
-  <text x="24" y="76" class="dg-msg">Send N5,000 now to reactivate.&rdquo;</text>
+  <text x="24" y="76" class="dg-msg">Pay N150,000 now to reactivate.&rdquo;</text>
 
   <path d="M200 108 V132" class="dg-arrow" marker-end="url(#dg-head)" />
 
@@ -45,7 +45,7 @@ const DIAGRAM = `
   <circle cx="200" cy="282" r="45" class="dg-ring" transform="rotate(-90 200 282)" />
   <text x="200" y="290" class="dg-count" text-anchor="middle">60s</text>
 
-  <text x="200" y="352" class="dg-chip" text-anchor="middle">&#8358;5,000.00 &rarr; *******567</text>
+  <text x="200" y="352" class="dg-chip" text-anchor="middle">&#8358;150,000.00 &rarr; *******567</text>
 
   <rect x="4" y="396" width="392" height="11" rx="5.5" class="dg-door-shut" />
   <text x="200" y="424" class="dg-door-label" text-anchor="middle">inner door &middot; closed until it clears</text>
@@ -54,7 +54,7 @@ const DIAGRAM = `
 
   <rect x="4" y="466" width="392" height="40" rx="12" class="dg-card dg-card-quiet" />
   <text x="24" y="491" class="dg-msg dg-msg-quiet">Your balance</text>
-  <text x="376" y="491" class="dg-chip" text-anchor="end">&#8358;48,200.00</text>
+  <text x="376" y="491" class="dg-chip" text-anchor="end">&#8358;180,000.00</text>
 </svg>`;
 
 /** The two questions, side by side. Same transfer, different check. */

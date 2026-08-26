@@ -39,7 +39,6 @@ app.innerHTML = `
     </nav>
     <div class="spacer"></div>
     <div class="topbar-end">
-      <span class="pill" id="reader-pill" hidden></span>
       <span class="pill" id="conn-pill"><i class="dot"></i><span>connecting</span></span>
       <button class="icon-btn" id="theme" title="Light or dark" aria-label="Toggle theme"></button>
     </div>
@@ -52,7 +51,6 @@ const nav = document.getElementById("nav")!;
 const navPill = document.getElementById("nav-pill")!;
 const brand = document.getElementById("brand")!;
 const connPill = document.getElementById("conn-pill")!;
-const readerPill = document.getElementById("reader-pill")!;
 const themeBtn = document.getElementById("theme") as HTMLButtonElement;
 
 // -- theme ------------------------------------------------------------------
@@ -77,24 +75,16 @@ window
   .matchMedia("(prefers-color-scheme: dark)")
   .addEventListener("change", paintThemeButton);
 
-// -- status indicators ------------------------------------------------------
-// Both read real server state: the SSE connection itself, and /health, which
-// is how the Reader going down in beat six becomes visible rather than silent.
+// -- status indicator -------------------------------------------------------
+// Real server state: the SSE connection itself. The Reader's health is shown
+// on the pipeline instead of here — in global chrome it reads as a permanent
+// disclaimer about the build; on the pipeline it reads as component status,
+// which is what it is.
 
 store.subscribe((s) => {
   const cls =
     s.connection === "live" ? "live" : s.connection === "down" ? "down" : "busy";
   connPill.innerHTML = `<i class="dot ${cls}"></i><span>${s.connection}</span>`;
-
-  if (!s.health) {
-    readerPill.hidden = true;
-    return;
-  }
-  readerPill.hidden = false;
-  const up = s.health.reader_reachable;
-  readerPill.innerHTML =
-    `<i class="dot ${up ? "live" : "down"}"></i>` +
-    `<span>Reader ${up ? s.health.reader_mode : "offline"}</span>`;
 });
 
 // -- routing ----------------------------------------------------------------
