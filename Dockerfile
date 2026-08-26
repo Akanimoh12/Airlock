@@ -7,7 +7,10 @@
 # fail-closed beat belongs on the laptop, where a real process dies in front
 # of people.
 
-FROM rust:1.83-slim AS builder
+# Pinned to the toolchain the workspace is actually built and tested against.
+# A floating tag would move under us between deploys, and an older pin would
+# be a build failure discovered on Render rather than here.
+FROM rust:1.98-slim AS builder
 WORKDIR /build
 
 # Manifests first, so a source-only change doesn't refetch the registry.
