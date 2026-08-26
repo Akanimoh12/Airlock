@@ -1,0 +1,27 @@
+# Render blueprint for the API.
+#
+# The frontend stays on Vercel and reaches this over CORS, which the API
+# already allows. See docs/deploying.md for the Vercel side and for why the
+# hosted instance is not where the demo runs.
+
+services:
+  - type: web
+    name: airlock-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+    healthCheckPath: /health
+    envVars:
+      # main.rs binds loopback unless told otherwise, so that a local run
+      # never quietly exposes the demo wallet to the venue wifi.
+      - key: BIND_ALL
+        value: "1"
+      - key: RUST_LOG
+        value: info
+      # Left unset on purpose: the hosted instance runs the stub Reader.
+      # A second free-tier service would spin down on idle and turn every
+      # novel-recipient transfer into a fail-closed hold — correct, and
+      # indistinguishable from a broken deploy.
+      # - key: READER_URL
+      #   value: https://airlock-reader.onrender.com
