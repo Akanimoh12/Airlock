@@ -10,6 +10,8 @@ pub mod trust;
 
 pub use events::{AirlockEvent, Component, Timestamp};
 pub use linker::{PlainReason, Responsiveness, Verdict};
-pub use signal::{Confidence, MaskedMsisdn, Money, PressureSignal, RequestedAction, Urgency};
+pub use signal::{
+    ClaimedAuthority, Confidence, MaskedMsisdn, Money, PressureSignal, RequestedAction, Urgency,
+};
 pub use transaction::{state, InvalidTransition, StateTag, Transaction, TransactionState, TxnId};
 pub use trust::{Evidence, Source, Untrusted, Validated};

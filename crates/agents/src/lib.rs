@@ -26,7 +26,10 @@ pub mod validate;
 
 pub use linker::{ActionKind, FactMatch, Linker, LinkerView, TransferFacts};
 pub use reader::{analyse_message, Reader, ScreenError};
-pub use screening::{screen, screen_supervised, supervised_screen, SCREENING_TIMEOUT};
+pub use screening::{
+    screen, screen_reported, screen_supervised, supervised_screen, ScreeningReport,
+    SCREENING_TIMEOUT,
+};
 pub use validate::{
     mask_msisdn, validate_reader_json, validate_reader_output, SanitisationReport, SchemaError,
 };

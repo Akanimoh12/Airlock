@@ -157,6 +157,11 @@ fn sanitise(
         report.authority_claim_dropped = signal.authority_claim.is_none();
     }
 
+    // `claimed_authority` needs no sanitising and gets none: it is a closed
+    // set, so deserialisation has already refused anything that is not one of
+    // the variants. That is the property that lets it cross to the product
+    // surface while `authority_claim` does not.
+
     if let RequestedAction::Other(desc) = &signal.requested_action {
         match sanitise_text(desc, MAX_OTHER_ACTION) {
             Some(clean) => signal.requested_action = RequestedAction::Other(clean),
@@ -228,11 +233,51 @@ mod tests {
         PressureSignal {
             urgency: Urgency::High,
             authority_claim: Some(claim.to_string()),
+            claimed_authority: airlock_core::ClaimedAuthority::Unknown,
             requested_action: RequestedAction::CallNumber,
             named_amount: None,
             named_recipient: None,
             confidence: Confidence::High,
         }
+    }
+
+    /// The schema boundary for the one field that reaches the product
+    /// surface. An authority outside the closed set is not sanitised into
+    /// something safe — it is refused outright.
+    #[test]
+    fn an_authority_outside_the_closed_set_is_refused() {
+        let body = r#"{
+            "urgency": "High",
+            "authority_claim": null,
+            "claimed_authority": "<script>alert(1)</script>",
+            "requested_action": "CallNumber",
+            "named_amount": null,
+            "named_recipient": null,
+            "confidence": "High"
+        }"#;
+        assert!(matches!(
+            validate_reader_json(body).unwrap_err(),
+            SchemaError::Malformed(_)
+        ));
+    }
+
+    /// Reader output that predates the field still parses, and defaults to
+    /// claiming nobody rather than to a guess.
+    #[test]
+    fn a_missing_claimed_authority_defaults_to_none() {
+        let body = r#"{
+            "urgency": "Low",
+            "authority_claim": null,
+            "requested_action": "CallNumber",
+            "named_amount": null,
+            "named_recipient": null,
+            "confidence": "Low"
+        }"#;
+        let (validated, _) = validate_reader_json(body).unwrap();
+        assert_eq!(
+            validated.get().claimed_authority,
+            airlock_core::ClaimedAuthority::None
+        );
     }
 
     #[test]

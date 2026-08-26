@@ -226,6 +226,7 @@ mod tests {
         let signal = Validated::from_trusted_source(PressureSignal {
             urgency: Urgency::High,
             authority_claim: Some("MTN".to_string()),
+            claimed_authority: airlock_core::ClaimedAuthority::Mtn,
             requested_action: RequestedAction::Other("whatever the reader wrote".to_string()),
             named_amount: Some(ngn(5_000)),
             named_recipient: None,

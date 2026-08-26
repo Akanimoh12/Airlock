@@ -6,7 +6,7 @@
 
 use crate::linker::{Linker, LinkerView, TransferFacts};
 use crate::reader::{Reader, ScreenError};
-use airlock_core::{Untrusted, Verdict};
+use airlock_core::{ClaimedAuthority, Untrusted, Verdict};
 use airlock_policy::ScreeningOutcome;
 use std::fmt::Display;
 use std::future::Future;
@@ -84,6 +84,23 @@ pub async fn screen(
     Ok(responsiveness.verdict)
 }
 
+/// Screening's outcome plus the one piece of the signal the product surface
+/// is allowed to see.
+///
+/// `ScreeningOutcome` lives in `airlock-policy` and stays exactly as it is —
+/// the policy engine's inputs are not ours to widen. This wrapper carries the
+/// extra field alongside it instead, so the API can tell the user *who* was
+/// impersonated without the policy engine gaining a field it would ignore.
+///
+/// When screening did not complete there is no signal to report, so
+/// `claimed_authority` is `None` and the surface falls back to generic copy —
+/// which is right, because a fail-closed hold has its own explanation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScreeningReport {
+    pub outcome: ScreeningOutcome,
+    pub claimed_authority: ClaimedAuthority,
+}
+
 /// Screen under supervision. This is what the API calls: it always returns a
 /// `ScreeningOutcome`, never an error, and the outcome for any kind of
 /// failure is `Unavailable`.
@@ -93,11 +110,59 @@ pub async fn screen_supervised(
     message: Untrusted<String>,
     facts: TransferFacts,
 ) -> ScreeningOutcome {
-    supervised_screen(
-        screen(reader, linker, message, facts),
+    screen_reported(reader, linker, message, facts).await.outcome
+}
+
+/// As `screen_supervised`, but also reports the claimed authority so the hold
+/// screen can name who was being impersonated.
+pub async fn screen_reported(
+    reader: Reader,
+    linker: Linker,
+    message: Untrusted<String>,
+    facts: TransferFacts,
+) -> ScreeningReport {
+    // The authority is captured inside the screening task, which may panic or
+    // be timed out, so it comes back through a channel rather than a return
+    // value — a failed screening simply leaves it unset.
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let outcome = supervised_screen(
+        screen_capturing(reader, linker, message, facts, tx),
         SCREENING_TIMEOUT,
     )
-    .await
+    .await;
+
+    ScreeningReport {
+        outcome,
+        claimed_authority: match outcome {
+            ScreeningOutcome::Completed { .. } => rx.await.unwrap_or_default(),
+            ScreeningOutcome::Unavailable => ClaimedAuthority::None,
+        },
+    }
+}
+
+/// `screen`, with the claimed authority sent out as a side channel. Kept
+/// private: `screen` remains the shape everything else builds against.
+async fn screen_capturing(
+    reader: Reader,
+    linker: Linker,
+    message: Untrusted<String>,
+    facts: TransferFacts,
+    authority: tokio::sync::oneshot::Sender<ClaimedAuthority>,
+) -> Result<Verdict, ScreenError> {
+    let (signal, report) = reader.read(&message).await?;
+    tracing::info!(
+        agent = "reader",
+        sanitised = !report.is_clean(),
+        "reader completed"
+    );
+
+    // Send before the Linker runs, so a Linker failure does not lose it.
+    let _ = authority.send(signal.get().claimed_authority);
+
+    let view = LinkerView::project(&signal, &facts);
+    let responsiveness = linker.judge(&view);
+    tracing::info!(agent = "linker", verdict = ?responsiveness.verdict, "linker completed");
+    Ok(responsiveness.verdict)
 }
 
 #[cfg(test)]
