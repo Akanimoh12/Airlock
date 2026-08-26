@@ -808,29 +808,14 @@ details.tech .body {
   flex-grow: 1;
   min-height: 560px;
   overflow: auto;
-  scrollbar-color: var(--line-strong) transparent;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .flow::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-.flow::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.flow::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
-  border-radius: 4px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-.flow::-webkit-scrollbar-thumb:hover {
-  background-color: var(--ink-2);
-  background-clip: padding-box;
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 /*
