@@ -10,11 +10,15 @@ import { renderHome } from "./views/home";
 
 type Route = "home" | "wallet" | "sender" | "pipeline";
 
-/** The tab strip. Home is not in it — the wordmark is the way back. */
+/**
+ * The tab strip, in demo order: the pipeline is the frame, the message is
+ * what a judge sends, the wallet is where it lands. Home is not in it — the
+ * wordmark is the way back.
+ */
 const TABS: { id: Route; label: string }[] = [
-  { id: "wallet", label: "Wallet" },
-  { id: "sender", label: "Send a message" },
   { id: "pipeline", label: "Pipeline" },
+  { id: "sender", label: "Send a message" },
+  { id: "wallet", label: "Wallet" },
 ];
 
 function routeFromHash(): Route {
