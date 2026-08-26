@@ -177,6 +177,7 @@ function nodeStates(s: StoreState, txn: TxnView | undefined): Record<string, Nod
     sms: inboxHas ? "done" : "idle",
     reader: readerFailed ? "dead" : screening ? "on" : txn ? "done" : "idle",
     transfer: txn ? "done" : "idle",
+    recipient: txn ? "done" : "idle",
     linker: readerFailed ? "idle" : screening ? "on" : txn ? "done" : "idle",
     policy: txn ? (screening ? "on" : "done") : "idle",
     outcome: "idle",
