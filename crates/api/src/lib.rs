@@ -227,12 +227,15 @@ impl AppState {
             self.emit(AirlockEvent::ScreenFailed { txn: id, component: Component::Reader });
         }
 
+        let recipient_risk = self.ledger.assess_recipient_risk(&req.recipient);
+
         let decision = decide(&DecisionInput {
             recipient: RecipientProfile { established },
             inbound_contact: contact
                 .as_ref()
                 .map(|(_, at)| InboundContact { received_at: *at }),
             screening,
+            recipient_risk,
             proposed_at: now,
         });
 

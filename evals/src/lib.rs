@@ -85,6 +85,7 @@ pub async fn run_case(case: &Case) -> PolicyDecision {
         recipient: RecipientProfile { established: case.established },
         inbound_contact: Some(InboundContact { received_at }),
         screening,
+        recipient_risk: airlock_core::RecipientRisk::Unremarkable,
         proposed_at,
     })
 }

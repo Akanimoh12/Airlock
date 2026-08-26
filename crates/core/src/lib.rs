@@ -9,7 +9,7 @@ pub mod transaction;
 pub mod trust;
 
 pub use events::{AirlockEvent, Component, Timestamp};
-pub use linker::{PlainReason, Responsiveness, Verdict};
+pub use linker::{PlainReason, RecipientRisk, Responsiveness, Verdict};
 pub use signal::{
     ClaimedAuthority, Confidence, MaskedMsisdn, Money, PressureSignal, RequestedAction, Urgency,
 };

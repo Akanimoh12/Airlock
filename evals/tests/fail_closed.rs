@@ -43,6 +43,7 @@ async fn a_dead_reader_holds_a_novel_recipient() {
         recipient: RecipientProfile { established: false },
         inbound_contact: Some(InboundContact { received_at: epoch() - Duration::minutes(4) }),
         screening,
+        recipient_risk: airlock_core::RecipientRisk::Unremarkable,
         proposed_at: epoch(),
     });
     assert!(matches!(decision, PolicyDecision::Hold { .. }), "got {decision:?}");
@@ -123,6 +124,7 @@ async fn a_dead_reader_still_lets_an_established_recipient_through() {
         recipient: RecipientProfile { established: true },
         inbound_contact: Some(InboundContact { received_at: epoch() - Duration::minutes(4) }),
         screening: ScreeningOutcome::Unavailable,
+        recipient_risk: airlock_core::RecipientRisk::Unremarkable,
         proposed_at: epoch(),
     });
     assert_eq!(decision, PolicyDecision::Pass);

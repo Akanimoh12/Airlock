@@ -184,10 +184,11 @@ a:hover {
   height: 120vh;
 }
 
-/* The pipeline scrolls sideways, and `right: 0` only reaches the visible edge
-   of a scroll container — so the layer is pinned to the canvas width. */
+/* The pipeline scrolls sideways. The dotgrid extends across both the visible
+   viewport and the full scrollable canvas width. */
 .flow::before {
-  min-width: 1360px;
+  width: max(100vw, 1800px);
+  min-width: max(100vw, 1800px);
 }
 
 /* Content sits above the dot layer. */
@@ -807,15 +808,29 @@ details.tech .body {
   flex-grow: 1;
   min-height: 560px;
   overflow: auto;
-  /* Still pans and scrolls — the bars are just not drawn. */
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
 }
 
 .flow::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
+  width: 8px;
+  height: 8px;
+}
+
+.flow::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.flow::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.flow::-webkit-scrollbar-thumb:hover {
+  background-color: var(--ink-2);
+  background-clip: padding-box;
 }
 
 /*
@@ -825,7 +840,7 @@ details.tech .body {
  */
 .flow-inner {
   position: relative;
-  width: 1360px;
+  width: 1520px;
   height: 520px;
   margin: 0 auto;
 }
@@ -962,6 +977,23 @@ details.tech .body {
   border-color: var(--dead);
   background: var(--dead-soft);
   opacity: 0.92;
+}
+
+.node-badge {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r);
+  font-size: 11px;
+  white-space: nowrap;
+  box-shadow: var(--shadow);
 }
 
 .handle {

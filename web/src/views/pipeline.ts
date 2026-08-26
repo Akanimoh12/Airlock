@@ -32,34 +32,43 @@ interface Node {
  * Node box and the canvas it sits on. These are the same coordinate space the
  * SVG viewBox and `.flow-inner` use — change one and change all three, or the
  * edges stop meeting their handles.
+ *
+ * Two-lane layout:
+ * - Top lane (y=40): Message path: SMS → Reader → Linker
+ * - Bottom lane (y=300): Account path: Transfer → Recipient
+ * - Converge (y=170): Policy engine receives from both Linker and Recipient
+ * - Outcome (y=170): Right side
  */
 const W = 208;
 const H = 108;
-const CANVAS_W = 1360;
+const CANVAS_W = 1520;
 const CANVAS_H = 520;
 
 const NODES: Node[] = [
-  { id: "sms", kind: "Untrusted", name: "Inbound message", note: "SMS or call transcript", x: 24, y: 60, w: W, h: H },
-  { id: "reader", kind: "Agent", name: "Reader", note: "No account access. Raw text stops here.", x: 300, y: 60, w: W, h: H },
-  { id: "transfer", kind: "User-authorised", name: "Transfer request", note: "PIN already verified", x: 24, y: 330, w: W, h: H },
-  { id: "linker", kind: "Agent", name: "Linker", note: "Typed signal only. Never sees prose.", x: 576, y: 190, w: W, h: H },
-  { id: "policy", kind: "Pure Rust", name: "Policy engine", note: "Owns the hold. No model.", x: 852, y: 190, w: W, h: H },
-  { id: "outcome", kind: "Decision", name: "Outcome", note: "Pass, or hold for 60s", x: 1128, y: 190, w: W, h: H },
+  { id: "sms", kind: "Untrusted", name: "Inbound message", note: "SMS or call transcript", x: 24, y: 40, w: W, h: H },
+  { id: "reader", kind: "Agent", name: "Reader", note: "No account access. Raw text stops here.", x: 300, y: 40, w: W, h: H },
+  { id: "linker", kind: "Agent", name: "Linker", note: "Typed signal only. Never sees prose.", x: 576, y: 40, w: W, h: H },
+  { id: "transfer", kind: "User-authorised", name: "Transfer request", note: "PIN already verified", x: 24, y: 300, w: W, h: H },
+  { id: "recipient", kind: "Agent", name: "Recipient", note: "Account age, first-time payers. Never sees text.", x: 300, y: 300, w: W, h: H },
+  { id: "policy", kind: "Pure Rust", name: "Policy engine", note: "Owns the hold. No model.", x: 852, y: 170, w: W, h: H },
+  { id: "outcome", kind: "Decision", name: "Outcome", note: "Pass, or hold for 60s", x: 1128, y: 170, w: W, h: H },
 ];
 
 /**
- * `stage` is the edge's position in the flow, and it phases the pulse so the
- * motion travels through the pipeline instead of every edge blinking at once.
+ * Two separate paths converge at the policy engine:
+ * 1. Message path: SMS → Reader → Linker → Policy
+ * 2. Account path: Transfer → Recipient → Policy
  *
- * The two edges into the Linker share stage 1 deliberately: the message and
- * the transfer arrive together, which is the whole reason there is a Linker.
+ * `stage` phases the pulse so motion travels sequentially. Both paths feed
+ * Policy at stage 2, then Policy → Outcome at stage 3.
  */
 const EDGES: { from: string; to: string; label?: string; stage: number }[] = [
-  { from: "sms", to: "reader", stage: 0 },
+  { from: "sms", to: "reader", label: "Untrusted", stage: 0 },
   { from: "reader", to: "linker", label: "PressureSignal", stage: 1 },
-  { from: "transfer", to: "linker", label: "TransferFacts", stage: 1 },
+  { from: "transfer", to: "recipient", label: "TransferFacts", stage: 1 },
+  { from: "recipient", to: "policy", label: "RecipientRisk", stage: 2 },
   { from: "linker", to: "policy", label: "Responsiveness", stage: 2 },
-  { from: "policy", to: "outcome", stage: 3 },
+  { from: "policy", to: "outcome", label: "Decision", stage: 3 },
 ];
 
 /** One full trip through the chain, in seconds. Matches `--trace-period`. */
@@ -82,6 +91,7 @@ export function renderPipeline(root: HTMLElement): () => void {
             <div class="kind">${esc(n.kind)}</div>
             <div class="name">${esc(n.name)}</div>
             <div class="note" id="note-${n.id}">${esc(n.note)}</div>
+            ${n.id === "reader" ? `<div class="node-badge" id="reader-status" hidden></div>` : ""}
           </div>`,
         ).join("")}
       </div>
@@ -93,7 +103,6 @@ export function renderPipeline(root: HTMLElement): () => void {
       <span><i class="dot live"></i> completed</span>
       <span><i class="dot down"></i> failed — holds rather than passes</span>
       <span class="spacer"></span>
-      <span class="pill" id="p-reader"></span>
       <span id="p-summary" class="muted"></span>
     </div>
 
@@ -107,7 +116,7 @@ export function renderPipeline(root: HTMLElement): () => void {
 
   const log = root.querySelector("#p-log")!;
   const summary = root.querySelector("#p-summary")!;
-  const readerPill = root.querySelector<HTMLElement>("#p-reader")!;
+  const readerStatus = root.querySelector<HTMLElement>("#reader-status")!;
 
   const unsubscribe = store.subscribe((s) => {
     const txn = s.txns.find((t) => t.state === "Held") ?? s.txns[0];
@@ -118,16 +127,16 @@ export function renderPipeline(root: HTMLElement): () => void {
       el.className = `node ${states[n.id] === "idle" ? "" : states[n.id]}`.trim();
     }
 
-    // Component status, shown where it reads as status. Beat six turns this
-    // red at the same moment the Reader node goes dark.
+    // Reader status badge on the Reader node. Beat six turns this red when the
+    // Reader process dies, making the fail-closed moment visible on stage.
     if (s.health) {
-      readerPill.hidden = false;
+      readerStatus.hidden = false;
       const up = s.health.reader_reachable;
-      readerPill.innerHTML =
+      readerStatus.innerHTML =
         `<i class="dot ${up ? "live" : "down"}"></i>` +
-        `<span>Reader ${up ? s.health.reader_mode : "offline"}</span>`;
+        `<span>${up ? s.health.reader_mode : "offline"}</span>`;
     } else {
-      readerPill.hidden = true;
+      readerStatus.hidden = true;
     }
 
     const readerDown = s.health ? !s.health.reader_reachable : false;
@@ -185,10 +194,14 @@ function nodeStates(s: StoreState, txn: TxnView | undefined): Record<string, Nod
 function outcomeNote(t: TxnView): string {
   switch (t.state) {
     case "Held":
-      return `Held. ${t.reason ?? ""}`.trim();
+      return `Held. ${reasonLabel(t.reason)}`.trim();
     case "Executed":
     case "Cleared":
-      return "Passed straight through.";
+      // Pass outcomes show the governing rule. Established recipients pass via Rule 1.
+      if (t.recipient_established) {
+        return "Passed. Rule 1: Established recipient.";
+      }
+      return "Passed. Screening complete.";
     case "Released":
       return "Released by the account holder.";
     case "Cancelled":
@@ -196,6 +209,20 @@ function outcomeNote(t: TxnView): string {
     default:
       return "Deciding…";
   }
+}
+
+function reasonLabel(reason: string | null): string {
+  if (!reason) return "";
+  // Convert PlainReason enum values to readable labels
+  const labels: Record<string, string> = {
+    EstablishedRecipient: "Rule 1: Established recipient",
+    NovelRecipientUnsolicitedContact: "Rule 2: Novel recipient + unsolicited contact",
+    NovelRecipientHighRisk: "Rule 6: Novel recipient + high risk",
+    ScreeningUnavailable: "Rule 3: Screening unavailable (fail-closed)",
+    UserReleased: "User released",
+    CoolingPeriodNotElapsed: "Cooling period not elapsed",
+  };
+  return labels[reason] || reason;
 }
 
 type Edge = { from: string; to: string; label?: string; stage: number };
@@ -241,8 +268,13 @@ function edgeMarkup(e: Edge): string {
   const key = edgeKey(e);
   const delay = (e.stage * (TRACE_PERIOD / STAGES)).toFixed(2);
 
+  // Position labels to avoid node collisions. For vertical edges, offset to the side.
+  const isVertical = Math.abs(byId(e.from).y - byId(e.to).y) > 150;
+  const labelOffset = isVertical ? 20 : -9;
+  const labelX = isVertical ? midX + 30 : midX;
+
   const label = e.label
-    ? `<text class="edge-label" x="${midX}" y="${midY - 9}" text-anchor="middle">${esc(
+    ? `<text class="edge-label" x="${labelX}" y="${midY + labelOffset}" text-anchor="middle">${esc(
         e.label,
       )}</text>`
     : "";

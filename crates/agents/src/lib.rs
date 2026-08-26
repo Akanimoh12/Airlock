@@ -21,11 +21,13 @@
 
 pub mod linker;
 pub mod reader;
+pub mod recipient;
 pub mod screening;
 pub mod validate;
 
 pub use linker::{ActionKind, FactMatch, Linker, LinkerView, TransferFacts};
 pub use reader::{analyse_message, Reader, ScreenError};
+pub use recipient::RecipientView;
 pub use screening::{
     screen, screen_reported, screen_supervised, supervised_screen, ScreeningReport,
     SCREENING_TIMEOUT,

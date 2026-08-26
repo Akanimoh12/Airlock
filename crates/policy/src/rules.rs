@@ -1,7 +1,7 @@
-//! The five deterministic policy rules. Pure functions, no model, no I/O.
+//! The six deterministic policy rules. Pure functions, no model, no I/O.
 //! Every rule here has a corresponding test — see `tests` below.
 
-use airlock_core::{PlainReason, Timestamp, Verdict};
+use airlock_core::{PlainReason, RecipientRisk, Timestamp, Verdict};
 use chrono::Duration;
 
 /// Hold duration is fixed in code — no caller can pass in an override.
@@ -37,6 +37,7 @@ pub struct DecisionInput {
     pub recipient: RecipientProfile,
     pub inbound_contact: Option<InboundContact>,
     pub screening: ScreeningOutcome,
+    pub recipient_risk: RecipientRisk,
     pub proposed_at: Timestamp,
 }
 
@@ -55,7 +56,7 @@ pub enum ReleaseError {
     CoolingPeriodNotElapsed,
 }
 
-/// The five policy rules, in order:
+/// The six policy rules, in order:
 /// 1. established recipient -> pass, regardless of any message.
 /// 2. novel recipient + unsolicited inbound contact inside the correlation
 ///    window + responsive verdict -> hold.
@@ -64,10 +65,29 @@ pub enum ReleaseError {
 ///    caller-supplied override.
 /// 5. release requires an explicit call to `release` after the cooling
 ///    period elapses (see below) — the model has no path to it.
+/// 6. recipient risk signals (new account, fanning pattern) -> hold.
 pub fn decide(input: &DecisionInput) -> PolicyDecision {
     // Rule 1.
     if input.recipient.established {
         return PolicyDecision::Pass;
+    }
+
+    // Rule 6: recipient risk (additive only — can add holds, never remove them).
+    match input.recipient_risk {
+        RecipientRisk::NewAccount | RecipientRisk::Fanning => {
+            return PolicyDecision::Hold {
+                reason: PlainReason::NovelRecipientHighRisk,
+                releases_at: input.proposed_at + HOLD_DURATION,
+            };
+        }
+        RecipientRisk::Unknown => {
+            // Unknown recipient risk on a novel recipient -> hold (fail-closed).
+            return PolicyDecision::Hold {
+                reason: PlainReason::NovelRecipientHighRisk,
+                releases_at: input.proposed_at + HOLD_DURATION,
+            };
+        }
+        RecipientRisk::Unremarkable => {} // continue to next rules
     }
 
     // Rule 3: fail-closed. A novel recipient with no completed screening
@@ -122,6 +142,7 @@ mod tests {
             recipient: RecipientProfile { established: false },
             inbound_contact: None,
             screening: ScreeningOutcome::Completed { verdict: Verdict::Unrelated },
+            recipient_risk: RecipientRisk::Unremarkable,
             proposed_at: t(0),
         }
     }
@@ -199,5 +220,49 @@ mod tests {
         let releases_at = t(1);
         let now = t(1);
         assert_eq!(release(releases_at, now), Ok(PlainReason::UserReleased));
+    }
+
+    #[test]
+    fn rule6_new_account_risk_holds() {
+        let mut input = base_input();
+        input.recipient_risk = RecipientRisk::NewAccount;
+        match decide(&input) {
+            PolicyDecision::Hold { reason, .. } => {
+                assert_eq!(reason, PlainReason::NovelRecipientHighRisk)
+            }
+            other => panic!("new account risk must hold, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rule6_fanning_risk_holds() {
+        let mut input = base_input();
+        input.recipient_risk = RecipientRisk::Fanning;
+        match decide(&input) {
+            PolicyDecision::Hold { reason, .. } => {
+                assert_eq!(reason, PlainReason::NovelRecipientHighRisk)
+            }
+            other => panic!("fanning risk must hold, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rule6_unknown_risk_on_novel_recipient_holds() {
+        let mut input = base_input();
+        input.recipient_risk = RecipientRisk::Unknown;
+        match decide(&input) {
+            PolicyDecision::Hold { reason, .. } => {
+                assert_eq!(reason, PlainReason::NovelRecipientHighRisk)
+            }
+            other => panic!("unknown risk on novel recipient must hold, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn rule6_unremarkable_risk_continues_to_other_rules() {
+        let mut input = base_input();
+        input.recipient_risk = RecipientRisk::Unremarkable;
+        // Should pass since no other conditions trigger holds.
+        assert_eq!(decide(&input), PolicyDecision::Pass);
     }
 }

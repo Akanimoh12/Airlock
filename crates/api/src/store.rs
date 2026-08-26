@@ -8,8 +8,8 @@
 //! on the way out to the UI. Nothing downstream of this module sees one.
 
 use airlock_core::{
-    ClaimedAuthority, MaskedMsisdn, Money, PlainReason, Timestamp, TransactionState, TxnId,
-    Untrusted,
+    ClaimedAuthority, MaskedMsisdn, Money, PlainReason, RecipientRisk, Timestamp,
+    TransactionState, TxnId, Untrusted,
 };
 use airlock_policy::CORRELATION_WINDOW;
 use std::collections::HashMap;
@@ -81,6 +81,24 @@ impl Ledger {
         self.established
             .iter()
             .any(|e| subscriber_digits(e) == subscriber)
+    }
+
+    /// Assess recipient risk for demonstration. For a real system this would
+    /// query the ledger for account age, payment history, etc.
+    pub fn assess_recipient_risk(&self, msisdn: &str) -> RecipientRisk {
+        if self.is_established(msisdn) {
+            return RecipientRisk::Unremarkable;
+        }
+
+        // For demo, use specific numbers to show different risk patterns.
+        let subscriber = subscriber_digits(msisdn);
+        match subscriber.as_str() {
+            // Demo: "account opened 6 days ago, 4 other people paid it for the first time in the last hour"
+            "987654321" => RecipientRisk::Fanning,
+            // Demo: very new account
+            "988888888" => RecipientRisk::NewAccount,
+            _ => RecipientRisk::Unremarkable,
+        }
     }
 }
 
