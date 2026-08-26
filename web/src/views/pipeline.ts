@@ -47,13 +47,24 @@ const NODES: Node[] = [
   { id: "outcome", kind: "Decision", name: "Outcome", note: "Pass, or hold for 60s", x: 1128, y: 190, w: W, h: H },
 ];
 
-const EDGES: { from: string; to: string; label?: string }[] = [
-  { from: "sms", to: "reader" },
-  { from: "reader", to: "linker", label: "PressureSignal" },
-  { from: "transfer", to: "linker", label: "TransferFacts" },
-  { from: "linker", to: "policy", label: "Responsiveness" },
-  { from: "policy", to: "outcome" },
+/**
+ * `stage` is the edge's position in the flow, and it phases the pulse so the
+ * motion travels through the pipeline instead of every edge blinking at once.
+ *
+ * The two edges into the Linker share stage 1 deliberately: the message and
+ * the transfer arrive together, which is the whole reason there is a Linker.
+ */
+const EDGES: { from: string; to: string; label?: string; stage: number }[] = [
+  { from: "sms", to: "reader", stage: 0 },
+  { from: "reader", to: "linker", label: "PressureSignal", stage: 1 },
+  { from: "transfer", to: "linker", label: "TransferFacts", stage: 1 },
+  { from: "linker", to: "policy", label: "Responsiveness", stage: 2 },
+  { from: "policy", to: "outcome", stage: 3 },
 ];
+
+/** One full trip through the chain, in seconds. Matches `--trace-period`. */
+const TRACE_PERIOD = 2.8;
+const STAGES = 4;
 
 const byId = (id: string) => NODES.find((n) => n.id === id)!;
 
@@ -62,7 +73,7 @@ export function renderPipeline(root: HTMLElement): () => void {
     <div class="flow dotgrid">
       <div class="flow-inner" id="p-inner">
         <svg class="edges" id="p-edges" width="${CANVAS_W}" height="${CANVAS_H}"
-             viewBox="0 0 ${CANVAS_W} ${CANVAS_H}"></svg>
+             viewBox="0 0 ${CANVAS_W} ${CANVAS_H}">${EDGES.map(edgeMarkup).join("")}</svg>
         ${NODES.map(
           (n) => `
           <div class="node" id="n-${n.id}" style="left:${n.x}px;top:${n.y}px;width:${n.w}px;height:${n.h}px">
@@ -93,7 +104,6 @@ export function renderPipeline(root: HTMLElement): () => void {
     </div>
   `;
 
-  const svg = root.querySelector("#p-edges")!;
   const log = root.querySelector("#p-log")!;
   const summary = root.querySelector("#p-summary")!;
 
@@ -114,7 +124,7 @@ export function renderPipeline(root: HTMLElement): () => void {
       ? outcomeNote(txn)
       : byId("outcome").note;
 
-    svg.innerHTML = EDGES.map((e) => edgePath(e, states, s)).join("");
+    paintEdges(root, states);
 
     summary.textContent = txn
       ? `txn ${txn.id} · ${formatMoney(txn.amount)} → ${txn.recipient} · ${stateLabel(txn.state)}`
@@ -174,11 +184,12 @@ function outcomeNote(t: TxnView): string {
   }
 }
 
-function edgePath(
-  e: { from: string; to: string; label?: string },
-  states: Record<string, NodeState>,
-  s: StoreState,
-): string {
+type Edge = { from: string; to: string; label?: string; stage: number };
+
+const edgeKey = (e: Edge) => `${e.from}-${e.to}`;
+
+/** Where an edge starts, ends, and the curve between. Pure geometry. */
+function edgeCurve(e: Edge) {
   const a = byId(e.from);
   const b = byId(e.to);
   const x1 = a.x + a.w;
@@ -186,27 +197,79 @@ function edgePath(
   const x2 = b.x;
   const y2 = b.y + b.h / 2;
   const dx = Math.max(50, Math.abs(x2 - x1) * 0.45);
-  const d = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+  return {
+    d: `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`,
+    midX: (x1 + x2) / 2,
+    midY: (y1 + y2) / 2,
+  };
+}
 
-  // An edge out of a dead node is a path the signal never took.
-  const broken = states[e.from] === "dead";
-  const live = states[e.from] === "on" && !broken;
-  const carried =
-    !broken && (states[e.from] === "done" || states[e.from] === "hold");
-
-  let cls = "edge";
-  if (broken) cls += " dead";
-  else if (live) cls += " flowing";
-  else if (carried) cls += " on";
-  void s;
+/**
+ * An edge, drawn once as a trace: a dim base line that is always there, plus
+ * a short bright pulse that travels along it.
+ *
+ * **This markup is emitted exactly once.** The store ticks every second to
+ * move the hold countdowns, and rebuilding these paths on each tick would
+ * restart every CSS animation from zero — the pulse would never get more than
+ * a second along the curve. Updates go through `paintEdges`, which only
+ * changes classes.
+ *
+ * `pathLength="100"` normalises every curve to the same 100 units, so one
+ * dash pattern and one keyframe work for edges of wildly different lengths —
+ * no measuring with `getTotalLength()`.
+ *
+ * Every pulse shares one period, so a per-stage delay is a fixed phase offset
+ * rather than a drift: each edge sits a quarter-cycle behind the one before
+ * it, and the lit segments form a wave running down the chain.
+ */
+function edgeMarkup(e: Edge): string {
+  const { d, midX, midY } = edgeCurve(e);
+  const key = edgeKey(e);
+  const delay = (e.stage * (TRACE_PERIOD / STAGES)).toFixed(2);
 
   const label = e.label
-    ? `<text class="edge-label" x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 9}" text-anchor="middle">${esc(
+    ? `<text class="edge-label" x="${midX}" y="${midY - 9}" text-anchor="middle">${esc(
         e.label,
       )}</text>`
     : "";
 
-  return `<path class="${cls}" d="${d}" />${label}`;
+  return `
+    <path id="eb-${key}" class="edge-base" d="${d}" />
+    <path id="ep-${key}" class="edge-pulse off" d="${d}" pathLength="100"
+          style="animation-delay:${delay}s" />
+    ${label}`;
+}
+
+/**
+ * Restate which edges carried the signal. Classes only — never markup, so the
+ * running animations are left alone.
+ *
+ * A pulse is hidden with a class rather than removed, because removing it and
+ * putting it back would restart its animation and break the phase with its
+ * neighbours.
+ */
+function paintEdges(root: HTMLElement, states: Record<string, NodeState>) {
+  for (const e of EDGES) {
+    const key = edgeKey(e);
+    const from = states[e.from];
+    // An edge out of a dead node is a path the signal never took.
+    const broken = from === "dead";
+    const carried =
+      !broken && (from === "on" || from === "done" || from === "hold");
+
+    const base = root.querySelector(`#eb-${key}`);
+    if (base) {
+      base.setAttribute(
+        "class",
+        `edge-base${broken ? " dead" : carried ? " on" : ""}`,
+      );
+    }
+
+    const pulse = root.querySelector(`#ep-${key}`);
+    if (pulse) {
+      pulse.setAttribute("class", `edge-pulse${carried ? "" : " off"}`);
+    }
+  }
 }
 
 function describe(e: AirlockEvent): string {

@@ -767,29 +767,68 @@ details.tech .body {
   overflow: visible;
 }
 
-.edge {
+/*
+ * Edges are traces: a dim base that is always there, and a short pulse that
+ * travels it. Both paths share the same `d`.
+ */
+.edge-base {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 1.75;
+  stroke-width: 1.5;
+  stroke-linecap: round;
 }
-.edge.on {
-  stroke: var(--accent);
-  stroke-width: 2.25;
+
+/* Carried the signal — lit, but still the quiet layer under the pulse. */
+.edge-base.on {
+  stroke: var(--accent-line);
+  stroke-width: 2;
 }
-.edge.flowing {
-  stroke: var(--accent);
-  stroke-width: 2.25;
-  stroke-dasharray: 6 7;
-  animation: dash 0.7s linear infinite;
-}
-.edge.dead {
+
+.edge-base.dead {
   stroke: var(--dead);
+  stroke-width: 1.5;
   stroke-dasharray: 3 5;
 }
 
-@keyframes dash {
+/*
+ * `pathLength="100"` on the element normalises every curve to 100 units, so
+ * one dash pattern travels at the same apparent speed on a short hop and a
+ * long sweep alike. 14 units lit, 86 dark: one pulse in flight at a time.
+ *
+ * Offset counts down 100 → 0, which walks the dash forward; the period is
+ * exactly 100 so the loop is seamless.
+ */
+.edge-pulse {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 22 78;
+  /* Must match TRACE_PERIOD in views/pipeline.ts — the per-stage delays are
+     fractions of this, and a mismatch turns the wave into drift. */
+  animation: trace 2.8s linear infinite;
+}
+
+@keyframes trace {
+  from {
+    stroke-dashoffset: 100;
+  }
   to {
-    stroke-dashoffset: -13;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Hidden, not removed — taking the element out and putting it back would
+   restart its animation and break phase with its neighbours. */
+.edge-pulse.off {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edge-pulse {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-width: 2;
   }
 }
 
